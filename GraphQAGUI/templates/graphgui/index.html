@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>GraphQA <small>Answers from linked-data</small></h2>
+
+      <!-- Search Bar -->
+
+        <div class="row">
+
+          <div class="twelve columns">
+            <div class="radius panel">
+
+            <form action="search" method="post"> {% csrf_token %}
+              <div class="row collapse">
+
+                <div class="ten mobile-three columns">
+                  <input type="text" required="required" name="question" placeholder="Ask me anything" />
+                </div>
+
+
+
+                <div class="two mobile-one columns">
+                  <button type="submit" class="postfix button expand">Search</button>
+                </div>
+
+              </div>
+            </form>
+
+          </div>
+          </div>
+
+        </div>
+
+      <!-- End Search Bar -->
+
+
+      <!-- Answers -->
+
+        <div class="row">
+          <div class="twelve columns">
+
+<!--             <ul class="accordion">
+              <li class="active">
+                <div class="title">
+                  <h5>Accordion Panel 1</h5>
+                </div>
+                <div class="content">
+                  <p>stuff1</p>
+                </div>
+              </li>
+              <li>
+                <div class="title">
+                  <h5>Accordion Panel 2</h5>
+                </div>
+                <div class="content">
+                  <p>stuff2</p>
+                </div>
+              </li>
+              <li>
+                <div class="title">
+                  <h5>Accordion Panel 3</h5>
+                </div>
+                <div class="content">
+                  <p>stuff3</p>
+                </div>
+              </li>
+            </ul> -->
+
+          <div id="myAnswersDiv">
+
+          {% for question in myQuestions reversed %}
+
+          <div class="alert-box secondary">
+           Question: {{question.question}}
+           <br><br>
+           Answer: {{question.answer}}
+           
+           <div id="indexVoteButtons">
+            {% if question.correct == None or question.correct %}
+            <a class="success tiny round button" {% if question.correct == None %} href="/markcorrect/{{question.pk}}"{% endif %}>correct</a>
+            {% endif %}
+            {% if not question.correct %}
+            <a class="alert tiny round button" {% if question.correct == None %} href="/markincorrect/{{question.pk}}"{% endif %}>incorrect</a>
+            {% endif %}
+            {% if not question.correct == None %}
+            <a class="indexUndoButton" href="/unmark/{{question.pk}}">undo</a>
+            {% endif %}
+           </div>
+
+          </div>
+
+          {% endfor %}
+
+
+          </div>
+
+          <div id="clearMyAnswersDiv">
+            <a class="tiny secondary button" href="/clearmyhistory">Clear My History</a>
+          </div>
+
+          </div>
+
+        </div>
+
+      <!-- End Answers -->
+
+{% endblock %}

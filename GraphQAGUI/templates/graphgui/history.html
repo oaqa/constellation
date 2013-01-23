@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block head %}
+
+<link rel="stylesheet" href="/static/responsive/responsive-tables.css">
+<script src="stylesheet" href="/static/responsive/responsive-tables.js"></script>
+
+{% endblock %}
+
+{% block content %}
+      <!-- Answers -->
+
+        <div class="row">
+          <div class="twelve columns">
+
+          
+          {% if user.is_authenticated %}
+
+          <div id="clearQuestionsDiv">
+            <a class="tiny alert button" href="/clearsearchhistory">Clear All Searches</a>
+          </div>
+
+          {% endif %}
+
+            <table class="twelve responsive">
+              <tr>
+                <th>Question</th>
+                <th>Answer</th>
+                <th>Correct</th>
+              </tr>
+              {% for question in questions reversed %}
+              <tr>
+                <td>{{question.question}}</td>
+                <td>{{question.answer}}</td>
+                <td>{{question.correct|default_if_none:"Unknown"}}</td>
+              </tr>
+              {% endfor %}
+            </table>
+
+
+<!--           <div id="myAnswersDiv">
+
+          {% for question in myQuestions reversed %}
+
+          <div class="alert-box secondary">
+           Question: {{question.question}}
+           <br><br>
+           Answer: {{question.answer}}
+           
+           <div id="indexVoteButtons">
+            {% if question.correct == None or question.correct %}
+            <a class="success tiny round button" {% if question.correct == None %} href="/markcorrect/{{question.pk}}"{% endif %}>correct</a>
+            {% endif %}
+            {% if not question.correct %}
+            <a class="alert tiny round button" {% if question.correct == None %} href="/markincorrect/{{question.pk}}"{% endif %}>incorrect</a>
+            {% endif %}
+            {% if not question.correct == None %}
+            <a class="indexUndoButton" href="/unmark/{{question.pk}}">undo</a>
+            {% endif %}
+           </div>
+
+          </div>
+
+          {% endfor %}
+
+
+          </div>
+
+          <div id="clearMyAnswersDiv">
+            <a class="tiny secondary button" href="/clearmyhistory">Clear My History</a>
+          </div>
+
+          </div> -->
+
+        </div>
+      </div>
+
+      <!-- End Answers -->
+
+{% endblock %}
