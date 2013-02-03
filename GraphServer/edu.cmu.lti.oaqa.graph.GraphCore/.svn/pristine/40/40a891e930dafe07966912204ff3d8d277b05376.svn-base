@@ -1,0 +1,116 @@
+package edu.cmu.lti.oaqa.graph.core.load;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+
+public class TextFileReader {
+	long lineCount = 0;
+	long bytesSoFar = 0;
+	long length;
+	boolean printUpdates=true;
+	BufferedReader in;
+
+	public TextFileReader(){
+	}
+	
+	public TextFileReader(boolean verbose){
+		this.printUpdates=verbose;
+	}
+	
+	public TextFileReader(File file) throws FileNotFoundException{
+		selectFile(file);
+	}
+	
+	public TextFileReader(File file, boolean verbose) throws FileNotFoundException{
+		selectFile(file);
+		this.printUpdates=verbose;
+	}
+	
+	public TextFileReader(String fileLocation) throws FileNotFoundException{
+		selectFile(fileLocation);
+	}
+	
+	public TextFileReader(String fileLocation, boolean verbose) throws FileNotFoundException{
+		selectFile(fileLocation);
+		this.printUpdates=verbose;
+	}
+	
+	public void selectFile(String fileName) throws FileNotFoundException{
+		File f = new File(fileName);
+		FileReader fr = new FileReader(f);
+		this.in = new BufferedReader(fr);
+		this.length = f.length();
+		
+	}
+	
+	public void selectFile(File f) throws FileNotFoundException{
+		FileReader fr = new FileReader(f);
+		this.in = new BufferedReader(fr);
+		this.length = f.length();
+		
+	}
+	
+	public String next() throws IOException{
+		if (this.hasNext()==false){
+			throw new IOException();
+		}
+		String str;
+		str=in.readLine();
+		if (str!=null){
+			this.lineCount++;
+			this.bytesSoFar+=str.length()+1;
+		}
+		else{
+			in.close();
+		}
+		if ((lineCount%1000==0 && this.printUpdates==true) || str==null){
+			System.out.println("Line number: "+lineCount);
+			System.out.println("Percentage: "+((float)bytesSoFar/length)*100+"%");
+		}
+		return str;
+	}
+	
+	public boolean hasNext() throws IOException{
+
+		boolean hasNext;
+		this.in.mark(1);
+		
+		if(this.in.read()==-1){
+			hasNext=false;
+		}
+		else{
+			hasNext=true;
+		}
+		this.in.reset();
+		return hasNext;
+	}
+
+	public static String[] split(String input, char split){
+		if (split=='\\' || split=='^' || split=='$' || split=='{' || split=='}' || split=='[' || 
+			split==']' || split=='(' || split==')' || split=='.' || split=='*' || split=='+' || 
+			split=='?' || split=='|' || split=='<' || split=='>' || split=='-' || split=='&'){
+			if(!input.contains("~")){
+				return split(input.replace(split, '~'),'~');
+			}
+			else if(!input.contains("`")){
+				return split(input.replace(split, '`'),'`');
+			}
+			else if(!input.contains("@")){
+				return split(input.replace(split, '@'),'@');
+			}
+			else if(!input.contains("%")){
+				return split(input.replace(split, '%'),'%');
+			}
+			else{
+				throw new Error("could not split string, you may be using a reserved regex character as the split point");
+			}
+		}
+		else{
+			return input.split(""+split);
+		}
+	}
+	
+}

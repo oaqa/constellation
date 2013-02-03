@@ -1,0 +1,113 @@
+package edu.cmu.lti.oaqa.graph.core.load;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+
+public class TextFileReader {
+	long lineCount = 0;
+	long bytesSoFar = 0;
+	long length;
+	boolean printUpdates=true;
+	BufferedReader in;
+	
+	public TextFileReader(File file) throws FileNotFoundException{
+		selectFile(file);
+	}
+	
+	public TextFileReader(File file, boolean verbose) throws FileNotFoundException{
+		selectFile(file);
+		this.printUpdates=verbose;
+	}
+	
+	public TextFileReader(String fileLocation) throws FileNotFoundException{
+		selectFile(fileLocation);
+	}
+	
+	public TextFileReader(String fileLocation, boolean verbose) throws FileNotFoundException{
+		selectFile(fileLocation);
+		this.printUpdates=verbose;
+	}
+	
+	public void selectFile(String fileName) throws FileNotFoundException{
+		File f = new File(fileName);
+		FileReader fr = new FileReader(f);
+		this.in = new BufferedReader(fr);
+		this.length = f.length();
+		
+	}
+	
+	public void selectFile(File f) throws FileNotFoundException{
+		FileReader fr = new FileReader(f);
+		this.in = new BufferedReader(fr);
+		this.length = f.length();
+		
+	}
+	
+	public String next() throws IOException{
+		if (this.hasNext()==false){
+			throw new IOException();
+		}
+		String str;
+		str=in.readLine();
+		if (str!=null){
+			this.lineCount++;
+			this.bytesSoFar+=str.length()+1;
+		}
+		else{
+			in.close();
+		}
+		if ((lineCount%1000==0 && this.printUpdates==true) || str==null){
+			System.out.println("Line number: "+lineCount);
+			System.out.println("Percentage: "+((float)bytesSoFar/length)*100+"%");
+		}
+		return str;
+	}
+	
+	public void destroy() throws IOException{
+		in.close();
+	}
+	
+	public boolean hasNext() throws IOException{
+
+		boolean hasNext;
+		this.in.mark(1);
+		
+		if(this.in.read()==-1){
+			hasNext=false;
+		}
+		else{
+			hasNext=true;
+		}
+		this.in.reset();
+		return hasNext;
+	}
+	
+	
+	public static String readWholeFile(File file) throws IOException{
+		return readWholeFile(file,false);
+	}
+	
+	public static String readWholeFile(File file, boolean verbose) throws IOException{
+		TextFileReader reader = new TextFileReader(file,verbose);
+		String fileContents = "";
+		while(reader.hasNext()){
+			fileContents+=reader.next();
+		}
+		reader.destroy();
+		return fileContents;
+	}
+	
+	public static String readWholeFile(String fileLocation) throws IOException{
+		File file = new File(fileLocation);
+		return readWholeFile(file,false);
+	}
+	
+	public static String readWholeFile(String fileLocation, boolean verbose) throws IOException{
+		File file = new File(fileLocation);
+		return readWholeFile(file,verbose);
+	}
+	
+}

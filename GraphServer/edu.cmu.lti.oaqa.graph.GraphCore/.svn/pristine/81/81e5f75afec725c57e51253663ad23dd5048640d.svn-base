@@ -1,0 +1,66 @@
+package edu.cmu.lti.oaqa.graph.core.tools;
+
+import java.util.ArrayList;
+import java.util.List;
+
+
+import com.tinkerpop.blueprints.Direction;
+import com.tinkerpop.blueprints.Edge;
+import com.tinkerpop.blueprints.Graph;
+import com.tinkerpop.blueprints.Vertex;
+
+import edu.cmu.lti.oaqa.graph.core.utils.Primitives;
+
+public class TriplesGenerator {
+	
+	//needs serious work
+	
+	
+	public static List<String> generate(Graph graph){
+		return generate(graph,"name");
+	}
+	
+	public static List<String> generate(Graph graph,String primaryVertexLabelKey){
+		List<String> list = new ArrayList<String>();
+		String string;
+		for(Vertex v:graph.getVertices()){
+			for(String key:v.getPropertyKeys()){
+				string="";
+				string+=getVertexNameOrId(v,primaryVertexLabelKey)+",";
+				string+=key+",";
+				string+=getValue(v,key);
+				list.add(string);
+			}
+			for(Edge edge:v.query().direction(Direction.OUT).edges()){
+				string="";
+				string+=getVertexNameOrId(v,primaryVertexLabelKey)+",";
+				string+=edge.getLabel()+",";
+				string+=getVertexNameOrId(edge.getVertex(Direction.IN),primaryVertexLabelKey);
+				list.add(string);
+			}
+			
+		}
+		return list;
+	}
+	
+	private static String getValue(Vertex v, String key) {
+		if(key.equals("name")){
+			String[] value = (String[]) v.getProperty(key);
+			return value[value.length-1].replaceAll("_", " ").replaceAll(",", "#");
+		}
+		else return ((String) v.getProperty(key)).replaceAll(",", "#");
+		//String value = (String) v.getProperty(key);
+		//return null;
+	}
+
+	private static String getVertexNameOrId(Vertex v, String primaryVertexLabelKey){
+		String vertexName=null;
+		String[] vertexNameArray = (String[])v.getProperty("name");
+		if(vertexNameArray!=null) vertexName = vertexNameArray[vertexNameArray.length-1];
+		if(vertexName==null) vertexName = "[id: "+Primitives.intToString((Integer) v.getId())+"]";
+		return vertexName;
+	}
+	
+	
+
+}

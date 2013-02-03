@@ -1,0 +1,295 @@
+package edu.cmu.lti.oaqa.graph.constellation;
+
+// The JSON-RPC 2.0 Base classes that define the 
+// JSON-RPC 2.0 protocol messages
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import net.minidev.json.JSONArray;
+import net.minidev.json.JSONObject;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
+import com.thetransactioncompany.jsonrpc2.JSONRPC2ParseException;
+import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
+import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
+import com.thetransactioncompany.jsonrpc2.server.Dispatcher;
+import com.thetransactioncompany.jsonrpc2.server.MessageContext;
+import com.thetransactioncompany.jsonrpc2.server.RequestHandler;
+import com.tinkerpop.blueprints.Direction;
+import com.tinkerpop.blueprints.Edge;
+import com.tinkerpop.blueprints.Vertex;
+import com.tinkerpop.blueprints.impls.rexster.RexsterGraph;
+
+//import edu.cmu.lti.GraphQA.DemoGraph.Traverser;
+import edu.cmu.lti.oaqa.graph.canonical.CanonicalChunk;
+import edu.cmu.lti.oaqa.graph.canonical.CanonicalQuery;
+import edu.cmu.lti.oaqa.graph.canonical.GraphSearch;
+import edu.cmu.lti.oaqa.graph.canonical.KGraph;
+import edu.cmu.lti.oaqa.graph.canonical.QueryResult;
+import edu.cmu.lti.oaqa.graph.canonical.Verb;
+import edu.cmu.lti.oaqa.graph.exceptions.KBException;
+// The JSON-RPC 2.0 server framework package
+
+
+public class JsonServer2 {
+
+    public static class DemoGraphHandler implements RequestHandler {
+	
+    	private RexsterGraph rexsterGraph = new RexsterGraph("http://peace.isri.cs.cmu.edu:8182/graphs/CMUGraph");
+    	private GraphSearch searchClass = new CMUGraphSearch();
+    	private KGraph graph = new KGraph(this.rexsterGraph,searchClass);
+        // Reports the method names of the handled requests
+		public String[] handledRequests() {
+		
+		    return new String[]{"parse"};
+		}
+	
+	
+	// Processes the requests
+	public JSONRPC2Response process(JSONRPC2Request req, MessageContext ctx) {
+	
+	    if (req.getMethod().equals("parse")) {
+	    				
+		//parse query
+	    	
+	    System.out.println("here 1");
+
+		JSONArray list = (JSONArray) req.toJSON().get("params");
+		
+		JSONObject params = (JSONObject) list.get(0);
+		
+		boolean isPlural=params.get("plural").equals("true");
+		BigInteger uuid = (BigInteger) params.get("uuid");
+		Long qid = (Long) params.get("qid");
+		//System.out.println(isPlural);
+		//System.out.println(uuid);
+		//System.out.println(qid);
+		
+		System.out.println("here 2");
+		
+		JSONArray query = (JSONArray) params.get("query");
+		
+		System.out.println("query: "+query.toString());
+		
+		
+		QueryResult results;
+		try {
+			results = graph.issueQuery(createCanonicalQuery(query));
+		} catch (KBException e) {
+			e.printStackTrace();
+			return new JSONRPC2Response(JSONRPC2Error.INTERNAL_ERROR, req.getID());
+		}
+		System.out.println("here 3");
+		
+		HashMap map = new HashMap<String,Object>();
+		map.put("uuid", uuid);
+		System.out.println("here 4");
+		map.put("plainText",(String)makePlainText(results.getStrings()));
+		System.out.println("here 5");
+		map.put("plural", isPlural);
+		map.put("qid", qid);
+		map.put("type", "answer");
+		map.put("context", constructVerticesAsMaps(results.getVertices()));
+		System.out.println("here 6");
+		
+		//get the object's map from rexster and send that back
+		//get the actual answer and send that back
+		//get constants from the request and pass those back
+		
+		//return new JSONRPC2Response(propertyResult, req.getID());
+		JSONRPC2Response finalResponce = new JSONRPC2Response(map, req.getID());
+		System.out.println("here 7");
+		System.out.println("finalResponce: "+finalResponce.toString());
+		
+		return finalResponce;
+	    }
+	    
+	    else {
+	    
+	        // Method name not supported
+		
+		return new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND, req.getID());
+            }
+        }
+
+
+	private CanonicalQuery createCanonicalQuery(JSONArray query) throws KBException {
+		CanonicalQuery canonicalQuery = new CanonicalQuery();
+		for(Object jsonChunk:query.toArray()){
+			Verb verb;
+			String noun="";
+			Object[] chunkAsArray = ((JSONArray)jsonChunk).toArray();
+			System.out.println("jsonChunk: "+jsonChunk);
+			String verbString = chunkAsArray[0].toString().toLowerCase();
+			String nounString = (String) chunkAsArray[1];
+			
+			if(nounString!=null)nounString=nounString.toLowerCase();
+			
+			if(verbString.equals("traverse")) verb=Verb.TRAVERSE;
+			else if (verbString.equals("traversein")) verb=Verb.TRAVERSEIN;
+			else if (verbString.equals("traverseout")) verb=Verb.TRAVERSEOUT;
+			else if (verbString.equals("text")) verb=Verb.TEXT;
+			else if (verbString.equals("type")) verb=Verb.TYPE;
+			else throw new KBException("invalid query, invalid verb: "+
+										"\"" + verbString + "\"");
+			
+			noun=nounString;
+			
+			CanonicalChunk chunk = new CanonicalChunk(verb,noun);
+			canonicalQuery.addCanonicalChunk(chunk);
+		}
+		return canonicalQuery;
+	}
+    }
+
+
+ 
+	private static String makePlainText(Iterable<String> strings) {
+		ArrayList<String> stringsList = Lists.newArrayList(strings);
+		String output="";
+		if(stringsList.size()<2){
+			for(String answer:stringsList){
+				answer=answer.replaceAll("_", " ");
+				output+=answer;
+			}
+		}
+		else if(stringsList.size()==2){
+			output=stringsList.get(0).replaceAll("_", " ")+" and "+stringsList.get(1).replaceAll("_", " ");
+		}
+		else{
+			for(int x = 0; x<=stringsList.size()-2; x++){
+				output+=stringsList.get(x).replaceAll("_", " ")+", ";
+			}
+			output+="and "+stringsList.get(stringsList.size()-1).replaceAll("_", " ");
+		}
+		return output;
+	}
+    
+    
+    public String runJsonQuery(String inputJson){
+	    // Create a new JSON-RPC 2.0 request dispatcher
+		Dispatcher dispatcher =  new Dispatcher();
+		dispatcher.register(new DemoGraphHandler());
+		
+		JSONRPC2Request req = null;
+		JSONRPC2Response resp = null;
+
+		try{
+			req = JSONRPC2Request.parse(inputJson);
+			}
+	    catch (JSONRPC2ParseException e) {
+	        // handle exception
+	    	e.printStackTrace();
+	    	//throw new Error();
+			new JSONRPC2Response(JSONRPC2Error.INTERNAL_ERROR, req.getID());
+	    	}
+	 
+		//System.out.println("Request: \n" + req);
+		
+		resp = dispatcher.dispatch(req, null);
+		//System.out.println("Response: \n" + resp);
+		
+		return resp.toString();
+    }
+    
+    
+    /*public static void main(String[] args) {
+	
+        // Create a new JSON-RPC 2.0 request dispatcher
+	Dispatcher dispatcher =  new Dispatcher();
+	
+	
+	// Register the handlers with it
+	dispatcher.register(new DemoGraphHandler());
+	
+	//simulate graphQuery
+	String jsonString = "{\"jsonrpc\": \"2.0\", \"method\": \"parse\", \"params\": [\"{\\\"plural\\\": false, \\\"uuid\\\": 135579527904736286024158236999354009512, \\\"plainText\\\": \\\"What is nyberg's email?\\\", \\\"qid\\\": 0, \\\"context\\\": {}, \\\"query\\\": [[\\\"text\\\", \\\"nyberg\\\"], [\\\"type\\\", \\\"professor\\\"], [\\\"traverse\\\", \\\"\\\"], [\\\"type\\\", \\\"email\\\"]], \\\"type\\\": \\\"question\\\"}\"], \"id\": 0}\n" + 
+			"";
+	JSONRPC2Request req = null;
+	try{
+		req = JSONRPC2Request.parse(jsonString);
+		}
+    catch (JSONRPC2ParseException e) {
+        // handle exception
+    	e.printStackTrace();
+    	throw new Error();
+    	}
+ 
+	System.out.println("Request: \n" + req);
+	
+	JSONRPC2Response resp = dispatcher.dispatch(req, null);
+	System.out.println("Response: \n" + resp);
+    }*/
+    
+    /*public List<Vertex> findVertices(RexsterGraph graph, String searchPhrase){
+    	return Traverser.search(graph, searchPhrase);
+    }
+    
+    public static Vertex findVertex(RexsterGraph graph, String searchPhrase){
+    	List<Vertex> results = Traverser.search(graph, searchPhrase);
+    	if(results.size()>0) return results.get(0);
+    	else return null;
+    }*/
+    
+    public static String getProperty(Vertex vertex, String key){
+    	if(vertex==null) return null;
+    	try{
+    	return (String) vertex.getProperty(key);
+    	}
+    	catch(Exception e){
+    		e.printStackTrace();
+    		throw new Error();
+    	}
+    }
+    
+    public Iterable<Vertex> doTraverse(Vertex vertex, String value){
+    	Iterable<Vertex> queryResults = vertex.query().direction(Direction.OUT).vertices();
+    	List<Vertex> returnList = Lists.newArrayList();
+    	for(Vertex v:queryResults){
+    		for(String key:v.getPropertyKeys()){
+    			String property = v.getProperty(key).toString();
+    			if(property.equals(value)) returnList.add(v);
+    		}
+    	}
+    	return returnList;
+    }
+    
+    public static List<Map<String,String>> constructVerticesAsMaps(Iterable<Vertex> vertices){
+    	List<Map<String,String>> list = new ArrayList<Map<String,String>>();
+    	for(Vertex v:vertices) list.add(constructVertexAsMap(v));
+    	return list;
+    }
+    
+    public static Map<String,String> constructVertexAsMap(Vertex v){
+    	Map<String,String> map = Maps.newHashMap();
+    	for(String key:v.getPropertyKeys()){
+    		String value = v.getProperty(key).toString();
+    		map.put(key, value);
+    	}
+    	for(Edge edge: v.query().edges()){
+    		String key = edge.getId().toString();
+    		String value = edge.toString();
+    		map.put(key, value);
+    	}
+    	return map;
+    }
+    
+	public static JSONArray getFirstQueryObjectWithLabel(String string, JSONArray query) {
+		Iterator<Object> itty = query.iterator();
+		JSONArray step = null;
+		while(itty.hasNext()){
+			step=(JSONArray) itty.next();
+			if(step.get(0).equals(string)){
+				return step;
+			}
+		}
+		return null;
+	}
+	
+}
